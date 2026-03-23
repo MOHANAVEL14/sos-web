@@ -130,6 +130,130 @@
             border-radius: 50%;
             box-shadow: 0 0 8px rgba(25,118,210,0.7);
         }
+
+        /* ===== BOTTOM INFO BAR ===== */
+        #bottomBar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            z-index: 2000;
+            display: none; /* Show once we have distances */
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid rgba(255,255,255,0.4);
+            animation: slideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translate(-50%, 100px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        .bottom-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .label-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .label-value {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1a1a1a;
+        }
+
+        /* Weightage indicator */
+        .weightage-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #weightageFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #43a047, #fdd835, #f44336);
+            transition: width 0.5s ease, background 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .viewer-status {
+            font-size: 12px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #1976d2;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(25, 118, 210, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 118, 210, 0); }
+        }
+
+        /* ===== MAP BUTTONS ===== */
+        .map-btn-group {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1500;
+        }
+
+        .map-fab {
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.1);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .map-fab:active { transform: scale(0.9); background: #f0f0f0; }
+        .map-fab svg { width: 20px; height: 20px; fill: #333; }
     </style>
 </head>
 <body>
@@ -161,11 +285,44 @@
 
     <div id="map"></div>
 
+    <!-- Map FABs -->
+    <div class="map-btn-group">
+        <div class="map-fab" id="btnFitBoth" title="See Both">
+            <svg viewBox="0 0 24 24"><path d="M15,21h2v-2h-2V21z M19,21h2v-2h-2V21z M7,21h2v-2H7V21z M11,21h2v-2h-2V21z M19,17h2v-2h-2V17z M19,13h2v-2h-2V13z M19,9h2V7h-2V9z M19,5h2V3h-2V5z M15,5h2V3h-2V5z M11,5h2V3h-2V5z M7,5h2V3H7V5z M3,5h2V3H3V5z M3,9h2V7H3V9z M3,13h2v-2H3V13z M3,17h2v-2H3V17z M3,21h2v-2H3V21z M9,8v2h6V8H9z M9,14v2h6v-2H9z M12,10l-3,3h6L12,10z"/></svg>
+        </div>
+        <div class="map-fab" id="btnMe" title="Center on Me">
+            <svg viewBox="0 0 24 24"><path d="M12,8c-2.21,0-4,1.79-4,4s1.79,4,4,4s4-1.79,4-4S14.21,8,12,8z M12,14c-1.1,0-2-0.9-2-2s0.9-2,2-2s2,0.9,2,2S13.1,14,12,14z M20.94,11c-0.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83,3.52,3.52,6.83,3.06,11H1v2h2.06c0.46,4.17,3.77,7.48,7.94,7.94V23h2v-2.06c4.17-0.46,7.48-3.77,7.94-7.94H23v-2H20.94z M12,19c-3.87,0-7-3.13-7-7s3.13-7,7-7s7,3.13,7,7S15.87,19,12,19z"/></svg>
+        </div>
+    </div>
+
+    <!-- ===== BOTTOM ACTION BAR ===== -->
+    <div id="bottomBar">
+        <div class="bottom-row">
+            <div class="label-group">
+                <span class="label-title">Proximity</span>
+                <span class="label-value" id="proximityText">Calculating...</span>
+            </div>
+            <div class="label-group" style="text-align: right;">
+                <span class="label-title">Distance Difference</span>
+                <span class="label-value" id="bottomDistanceText">--</span>
+            </div>
+        </div>
+        
+        <div class="weightage-container">
+            <div id="weightageFill"></div>
+        </div>
+
+        <div class="viewer-status">
+            <div class="pulse-dot"></div>
+            <span>You are being tracked to assist • <span id="myArea">Locating...</span> • <span id="myStatus">Updating location...</span></span>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, collection, query, orderBy, limit, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB4e33HHhBbWOkeFsPjaRBrMLkCy1Nuu7A",
@@ -223,8 +380,50 @@
         function updateDistance() {
             if (myLat !== null && emergencyLat !== null) {
                 const dist = haversine(myLat, myLng, emergencyLat, emergencyLng);
-                distanceText.innerText = formatDistance(dist);
+                const formatted = formatDistance(dist);
+                
+                // Update top header box
+                distanceText.innerText = formatted;
                 distanceBox.style.display = "inline-block";
+
+                // Update premium bottom bar
+                const bottomBar = document.getElementById("bottomBar");
+                const bottomDistanceText = document.getElementById("bottomDistanceText");
+                const weightageFill = document.getElementById("weightageFill");
+                const proximityText = document.getElementById("proximityText");
+
+                bottomBar.style.display = "flex";
+                bottomDistanceText.innerText = formatted;
+
+                // Simple weightage logic (0-1km scale for the bar)
+                // Closer = more red/fuller? Or Closer = green? 
+                // Usually proximity = danger, so closer = full red?
+                // Let's say: 1km = green/0%, 50m = red/100%
+                let percentage = 0;
+                let color = "#43a047"; // Default Green
+                let proximityMsg = "Safe Distance";
+
+                if (dist < 1) { // within 1km
+                    percentage = Math.min(100, Math.max(0, (1 - dist) * 100));
+                    if (dist < 0.1) {
+                        color = "#f44336"; // Red
+                        proximityMsg = "Very Close";
+                    } else if (dist < 0.5) {
+                        color = "#fbc02d"; // Yellow/Orange
+                        proximityMsg = "Nearby";
+                    } else {
+                        color = "#43a047"; // Green
+                        proximityMsg = "Approaching";
+                    }
+                } else {
+                    percentage = 5; // tiny bit of progress
+                    proximityMsg = "Far Away";
+                }
+
+                weightageFill.style.width = percentage + "%";
+                weightageFill.style.background = color;
+                proximityText.innerText = proximityMsg;
+                proximityText.style.color = color;
             }
         }
 
@@ -262,42 +461,87 @@
             var emergencyMarker = null;
             var emergencyCircle = null;
 
-            // ── MY LOCATION (viewer) ──────────────────
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (pos) => {
-                        myLat = pos.coords.latitude;
-                        myLng = pos.coords.longitude;
-                        const myLatLng = [myLat, myLng];
-
-                        if (!myMarker) {
-                            // Custom blue dot icon for viewer
-                            const blueIcon = L.divIcon({
-                                className: 'my-location-icon',
-                                iconSize: [16, 16],
-                                iconAnchor: [8, 8]
-                            });
-                            myMarker = L.marker(myLatLng, { icon: blueIcon })
-                                .addTo(map)
-                                .bindPopup('<b>📍 Your Location</b>');
-                            myCircle = L.circle(myLatLng, {
-                                radius: pos.coords.accuracy || 20,
-                                color: '#1976d2',
-                                fillColor: '#1976d2',
-                                fillOpacity: 0.15,
-                                weight: 1
-                            }).addTo(map);
-                        } else {
-                            myMarker.setLatLng(myLatLng);
-                            if (myCircle) myCircle.setLatLng(myLatLng).setRadius(pos.coords.accuracy || 20);
-                        }
-
-                        updateDistance();
-                    },
-                    (err) => console.warn("Geolocation error:", err),
-                    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-                );
+            // ── UPDATE HELPERS ───────────────────────
+            let lastUpdate = Date.now();
+            function refreshStatusTicker() {
+                const myStatus = document.getElementById("myStatus");
+                const seconds = Math.floor((Date.now() - lastUpdate) / 1000);
+                myStatus.innerText = `Updated ${seconds}s ago`;
             }
+            setInterval(refreshStatusTicker, 1000);
+
+            // ── MAP HELPERS ──────────────────────────
+            function fitBoth() {
+                if (myLat && emergencyLat) {
+                    const bounds = L.latLngBounds([[myLat, myLng], [emergencyLat, emergencyLng]]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }
+
+            document.getElementById("btnMe").onclick = () => {
+                if (myLat) map.panTo([myLat, myLng]);
+            };
+            document.getElementById("btnFitBoth").onclick = fitBoth;
+
+            let firstLoad = true;
+            async function reverseGeocode(lat, lng) {
+                try {
+                    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`);
+                    const json = await resp.json();
+                    if (json.display_name) {
+                        const parts = json.address;
+                        const area = parts.suburb || parts.neighbourhood || parts.city_district || parts.city || "Nearby Area";
+                        document.getElementById("myArea").innerText = area;
+                    }
+                } catch(e) {}
+            }
+
+            // ── MY LOCATION (viewer) ──────────────────
+            function updateMyLocation() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            myLat = pos.coords.latitude;
+                            myLng = pos.coords.longitude;
+                            const myLatLng = [myLat, myLng];
+                            lastUpdate = Date.now();
+
+                            if (!myMarker) {
+                                const blueIcon = L.divIcon({
+                                    className: 'my-location-icon',
+                                    iconSize: [16, 16],
+                                    iconAnchor: [8, 8]
+                                });
+                                myMarker = L.marker(myLatLng, { icon: blueIcon })
+                                    .addTo(map)
+                                    .bindPopup('<b>📍 Your Location</b>');
+                                myCircle = L.circle(myLatLng, {
+                                    radius: pos.coords.accuracy || 20,
+                                    color: '#1976d2',
+                                    fillColor: '#1976d2',
+                                    fillOpacity: 0.15,
+                                    weight: 1
+                                }).addTo(map);
+                            } else {
+                                myMarker.setLatLng(myLatLng);
+                                if (myCircle) myCircle.setLatLng(myLatLng).setRadius(pos.coords.accuracy || 20);
+                            }
+                            updateDistance();
+                            reverseGeocode(myLat, myLng);
+                            if (firstLoad && emergencyLat) {
+                                fitBoth();
+                                firstLoad = false;
+                            }
+                        },
+                        (err) => console.warn("Geolocation error:", err),
+                        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+                    );
+                }
+            }
+
+            // Start viewer location interval (10sec)
+            updateMyLocation();
+            setInterval(updateMyLocation, 10000);
 
             // ── FIRESTORE: is_safe listener ───────────
             const alertDocRef = doc(db, "active_alerts", sessionId);
@@ -315,27 +559,26 @@
                 }
             });
 
-            // ── FIRESTORE: live location listener ─────
+            // ── FIRESTORE: 10-second location fetch ─────
             const locationsRef = collection(db, "active_alerts", sessionId, "locations");
-            const q = query(locationsRef, orderBy("timestamp", "asc"));
+            const qLatest = query(locationsRef, orderBy("timestamp", "desc"), limit(1));
 
-            onSnapshot(q, (snapshot) => {
-                if (snapshot.empty && !emergencyMarker) {
-                    statusBadge.innerText = "Waiting for GPS data...";
-                    return;
-                }
+            async function fetchEmergencyLocation() {
+                try {
+                    const snapshot = await getDocs(qLatest);
+                    if (snapshot.empty && !emergencyMarker) {
+                        statusBadge.innerText = "Waiting for GPS data...";
+                        return;
+                    }
 
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added" || change.type === "modified") {
-                        const data = change.doc.data();
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
                         emergencyLat = data.lat;
                         emergencyLng = data.lng;
                         const latLng = [emergencyLat, emergencyLng];
                         const accuracy = data.accuracy || 20;
 
                         statusBadge.innerText = "LIVE 🟢";
-
-                        // Reset the "paused" detection timer on each update
                         resetPauseTimer();
 
                         if (!emergencyMarker) {
@@ -353,14 +596,21 @@
                             if (emergencyCircle) emergencyCircle.setLatLng(latLng).setRadius(accuracy);
                             map.panTo(latLng);
                         }
+                            updateDistance();
+                            if (firstLoad && myLat) {
+                                fitBoth();
+                                firstLoad = false;
+                            }
+                        });
+                } catch (error) {
+                    console.error("Firestore fetch error:", error);
+                    statusBadge.innerText = "Error: Sync Failed";
+                }
+            }
 
-                        updateDistance();
-                    }
-                });
-            }, (error) => {
-                console.error("Firestore error:", error);
-                statusBadge.innerText = "Error: Permission Denied";
-            });
+            // Start emergency location interval (10sec)
+            fetchEmergencyLocation();
+            setInterval(fetchEmergencyLocation, 10000);
 
         } else {
             statusBadge.innerText = "Invalid Tracking Link";
