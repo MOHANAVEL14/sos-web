@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Guardian360 Live Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #header {
+            background: linear-gradient(135deg, #f84b4b 0%, #c62828 100%);
+            color: white;
+            padding: 12px 15px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1000;
+            transition: background 0.6s ease;
+        }
+        #header.safe {
+            background: linear-gradient(135deg, #43a047 0%, #1b5e20 100%);
+        }
+        #header.paused {
+            background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+        }
+        #header h2 { margin: 0; font-size: 18px; letter-spacing: 0.5px; }
+
+        /* Info row: status + distance */
+        #infoRow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            background-color: rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            display: inline-block;
+            border: 1.5px solid rgba(255,255,255,0.5);
+            transition: background-color 0.4s;
+        }
+
+        /* Distance display */
+        #distanceBox {
+            background-color: rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            border: 1.5px solid rgba(255,255,255,0.5);
+            display: none; /* shown once we have both locations */
+        }
+        #distanceBox span { opacity: 0.85; font-weight: normal; }
+
+        #idText {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            opacity: 0.75;
+        }
+
+        #map {
+            height: calc(100% - 90px);
+            width: 100%;
+            background-color: #ddd;
+        }
+
+        /* ===== SAFE OVERLAY (I AM SAFE pressed) ===== */
+        #safeOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(160deg, #2e7d32, #1b5e20);
+            color: white;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+        #safeOverlay.show { display: flex; }
+        #safeOverlay .big-icon { font-size: 80px; margin-bottom: 10px; }
+        #safeOverlay h1 { font-size: 40px; margin: 0 0 10px 0; }
+        #safeOverlay p { font-size: 18px; opacity: 0.9; line-height: 1.6; }
+
+        /* ===== PAUSED OVERLAY (location sharing paused/stopped) ===== */
+        #pausedOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(160deg, #e65100, #bf360c);
+            color: white;
+            z-index: 9998;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+        #pausedOverlay.show { display: flex; }
+        #pausedOverlay .big-icon { font-size: 80px; margin-bottom: 10px; }
+        #pausedOverlay h1 { font-size: 36px; margin: 0 0 10px 0; }
+        #pausedOverlay p { font-size: 18px; opacity: 0.9; line-height: 1.6; max-width: 400px; }
+        #pausedOverlay .sub { font-size: 14px; margin-top: 18px; opacity: 0.7; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* Viewer location legend */
+        .my-location-icon {
+            background: #1976d2;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(25,118,210,0.7);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== SAFE OVERLAY (is_safe = true in Firestore) ===== -->
+    <div id="safeOverlay">
+        <div class="big-icon">✅</div>
+        <h1>She is Safe!</h1>
+        <p>The emergency person has confirmed they are safe.<br>Live location tracking has been stopped.</p>
+    </div>
+
+    <!-- ===== PAUSED / STOPPED OVERLAY (location sharing paused) ===== -->
+    <div id="pausedOverlay">
+        <div class="big-icon">🔒</div>
+        <h1>Location Sharing Paused</h1>
+        <p>She was safe — the emergency person has <strong>paused sharing their location</strong>.</p>
+        <p class="sub">No new GPS updates are being received. The last known position is shown on the map.</p>
+    </div>
+
+    <!-- ===== HEADER ===== -->
+    <div id="header">
+        <h2>🚨 Guardian360 Live Emergency Tracker</h2>
+        <div id="infoRow">
+            <div class="status-badge" id="statusBadge">Connecting...</div>
+            <div id="distanceBox">📍 Distance: <span id="distanceText">--</span></div>
+        </div>
+        <p id="idText">Session ID: --</p>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB4e33HHhBbWOkeFsPjaRBrMLkCy1Nuu7A",
+            authDomain: "p-key-sadw8b5ihftl.firebaseapp.com",
+            projectId: "p-key-sadw8b5ihftl",
+            storageBucket: "p-key-sadw8b5ihftl.firebasestorage.app",
+            messagingSenderId: "1023817398127"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get("id");
+
+        const statusBadge  = document.getElementById("statusBadge");
+        const header       = document.getElementById("header");
+        const safeOverlay  = document.getElementById("safeOverlay");
+        const pausedOverlay= document.getElementById("pausedOverlay");
+        const distanceBox  = document.getElementById("distanceBox");
+        const distanceText = document.getElementById("distanceText");
+
+        // ──────────────────────────────────────────────
+        // Haversine formula – returns distance in km
+        // ──────────────────────────────────────────────
+        function haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function formatDistance(km) {
+            if (km < 1) return (km * 1000).toFixed(0) + " m";
+            return km.toFixed(2) + " km";
+        }
+
+        // ──────────────────────────────────────────────
+        // State
+        // ──────────────────────────────────────────────
+        let myLat = null, myLng = null;
+        let emergencyLat = null, emergencyLng = null;
+        let myMarker = null;
+        let myCircle = null;
+        let isStopped = false;
+
+        // Timeout for detecting "paused" sharing (15 seconds without update)
+        let pauseTimer = null;
+        const PAUSE_TIMEOUT_MS = 15000; // 15 seconds
+
+        function updateDistance() {
+            if (myLat !== null && emergencyLat !== null) {
+                const dist = haversine(myLat, myLng, emergencyLat, emergencyLng);
+                distanceText.innerText = formatDistance(dist);
+                distanceBox.style.display = "inline-block";
+            }
+        }
+
+        function showPausedMessage() {
+            if (!isStopped) {
+                pausedOverlay.classList.add("show");
+                header.classList.add("paused");
+                statusBadge.innerText = "⏸ Paused";
+            }
+        }
+
+        function resetPauseTimer() {
+            if (pauseTimer) clearTimeout(pauseTimer);
+            pausedOverlay.classList.remove("show");
+            header.classList.remove("paused");
+            pauseTimer = setTimeout(showPausedMessage, PAUSE_TIMEOUT_MS);
+        }
+
+        if (sessionId) {
+            document.getElementById("idText").innerText = "Session ID: " + sessionId;
+
+            // Initialise the map
+            var map = L.map('map', {
+                zoomControl: true,
+                scrollWheelZoom: true,
+                doubleClickZoom: true,
+                touchZoom: true
+            }).setView([0, 0], 2);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            var emergencyMarker = null;
+            var emergencyCircle = null;
+
+            // ── MY LOCATION (viewer) ──────────────────
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (pos) => {
+                        myLat = pos.coords.latitude;
+                        myLng = pos.coords.longitude;
+                        const myLatLng = [myLat, myLng];
+
+                        if (!myMarker) {
+                            // Custom blue dot icon for viewer
+                            const blueIcon = L.divIcon({
+                                className: 'my-location-icon',
+                                iconSize: [16, 16],
+                                iconAnchor: [8, 8]
+                            });
+                            myMarker = L.marker(myLatLng, { icon: blueIcon })
+                                .addTo(map)
+                                .bindPopup('<b>📍 Your Location</b>');
+                            myCircle = L.circle(myLatLng, {
+                                radius: pos.coords.accuracy || 20,
+                                color: '#1976d2',
+                                fillColor: '#1976d2',
+                                fillOpacity: 0.15,
+                                weight: 1
+                            }).addTo(map);
+                        } else {
+                            myMarker.setLatLng(myLatLng);
+                            if (myCircle) myCircle.setLatLng(myLatLng).setRadius(pos.coords.accuracy || 20);
+                        }
+
+                        updateDistance();
+                    },
+                    (err) => console.warn("Geolocation error:", err),
+                    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+                );
+            }
+
+            // ── FIRESTORE: is_safe listener ───────────
+            const alertDocRef = doc(db, "active_alerts", sessionId);
+            onSnapshot(alertDocRef, (docSnap) => {
+                if (!docSnap.exists()) return;
+                const data = docSnap.data();
+                if (data.is_safe === true) {
+                    isStopped = true;
+                    if (pauseTimer) clearTimeout(pauseTimer);
+                    pausedOverlay.classList.remove("show");
+                    safeOverlay.classList.add("show");
+                    header.classList.remove("paused");
+                    header.classList.add("safe");
+                    statusBadge.innerText = "✅ SAFE";
+                }
+            });
+
+            // ── FIRESTORE: live location listener ─────
+            const locationsRef = collection(db, "active_alerts", sessionId, "locations");
+            const q = query(locationsRef, orderBy("timestamp", "asc"));
+
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty && !emergencyMarker) {
+                    statusBadge.innerText = "Waiting for GPS data...";
+                    return;
+                }
+
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added" || change.type === "modified") {
+                        const data = change.doc.data();
+                        emergencyLat = data.lat;
+                        emergencyLng = data.lng;
+                        const latLng = [emergencyLat, emergencyLng];
+                        const accuracy = data.accuracy || 20;
+
+                        statusBadge.innerText = "LIVE 🟢";
+
+                        // Reset the "paused" detection timer on each update
+                        resetPauseTimer();
+
+                        if (!emergencyMarker) {
+                            emergencyMarker = L.marker(latLng).addTo(map);
+                            emergencyCircle = L.circle(latLng, {
+                                radius: accuracy,
+                                color: '#f84b4b',
+                                fillColor: '#f84b4b',
+                                fillOpacity: 0.2
+                            }).addTo(map);
+                            emergencyMarker.bindPopup("<b>🚨 Emergency Location</b><br>Live Tracking Active").openPopup();
+                            map.setView(latLng, 16);
+                        } else {
+                            emergencyMarker.setLatLng(latLng);
+                            if (emergencyCircle) emergencyCircle.setLatLng(latLng).setRadius(accuracy);
+                            map.panTo(latLng);
+                        }
+
+                        updateDistance();
+                    }
+                });
+            }, (error) => {
+                console.error("Firestore error:", error);
+                statusBadge.innerText = "Error: Permission Denied";
+            });
+
+        } else {
+            statusBadge.innerText = "Invalid Tracking Link";
+            document.getElementById("idText").innerText = "No ID provided in URL";
+        }
+    </script>
+</body>
+</html>
